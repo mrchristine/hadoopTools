@@ -12,8 +12,8 @@ import org.apache.hadoop.util.*;
 public class Home{
 		
 	public static void main (String [] args) throws Exception{
-		String username = "mwc";
-		String dest = "hdfs://nightly46-1.ent.cloudera.com:8020/user/" + username;
+		String username = "admin";
+		String dest = "hdfs://localhost:8020/user/" + username;
 		Path path=new Path(dest);
 
 		FileSystem fs = FileSystem.get(new Configuration());
