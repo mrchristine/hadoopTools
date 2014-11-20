@@ -9,6 +9,7 @@ from subprocess import call
 # Assumes there is 1 type of service per cluster, i.e. 1 hive service on each cluster.
 # Assumes the source service role config groups should be created on the destination service
 # Not tested on Kerberos enabled cluster
+# Apply configuration from config file not yet working
 
 # Cluster specific configurations are not applied
 # Current list of non-configured settings:
@@ -32,8 +33,8 @@ def buildParser(inputArgs):
     parser.add_argument('-p', '--pass', dest='password', default='admin', help='CM Password')
     parser.add_argument('--srcCluster', dest='fromCluster', help='Source Cluster Name')
     parser.add_argument('--dstCluster', dest='toCluster', help='Destination Cluster Name')
-    parser.add_argument('-a', '--applyConf', dest='readConf', help='Read and apply configuration from file defined by '
-                                                                   '--configFile.')
+    parser.add_argument('-a', '--applyConf', dest='readConf', help='NOT WORKING: Read and apply configuration from '
+                                                                   'file defined by --configFile.')
     parser.add_argument('-v', dest='verbose', action='store_true', default=False,
                         help='Enable verbose logging')
     parser.add_argument('-b', dest='bestEffort', action='store_true', default=False,
