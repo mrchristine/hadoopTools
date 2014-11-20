@@ -24,10 +24,8 @@ def buildParser(inputArgs):
                         help='Dump the configuration to local disk. Specify cluster using --src parameter')
     parser.add_argument('--configFile', dest='srcConf', help='Configuration filename')
     # hostnames and port
-    parser.add_argument('-s', '--src', dest='src', default='nightly52-1.ent.cloudera.com',
-                        help='Source hostname')
-    parser.add_argument('-d', '--dst', dest='dst', default='nightly51-1.ent.cloudera.com',
-                        help='Destination hostname')
+    parser.add_argument('-s', '--src', dest='src', help='Source CM hostname')
+    parser.add_argument('-d', '--dst', dest='dst', help='Destination CM hostname')
     parser.add_argument('-P', '--port', dest='port', default=7180, type=int, help='CM Port')
     # user / pass
     parser.add_argument('-u', '--user', dest='user', default='admin', help='CM User')
@@ -286,10 +284,14 @@ if __name__ == "__main__":
     if args.verbose:
         debug = True
 
+    if (args.src is None) or (args.dst is None):
+        print "Must provide source and destination hostnames for CM"
+        exit(1)
+
     sapi = ApiResource(args.src, args.port, args.user, args.password)
     dapi = ApiResource(args.dst, args.port, args.user, args.password)
 
-    if (args.fromCluster is not None) and (args.toCluster is not None):
+    if (args.fromCluster is None) or (args.toCluster is None):
         # Get all cluster names
         sClusters = []
         for c in sapi.get_all_clusters():
@@ -306,8 +308,8 @@ if __name__ == "__main__":
         print "Destination cluster: " + args.dst
         dCluster = pickCluster(dClusters)
     else:
-        sCluster = args.fromCluster
-        dCluster = args.toCluster
+        sCluster = sapi.get_cluster(args.fromCluster)
+        dCluster = dapi.get_cluster(args.toCluster)
 
     if args.dumpConf:
         if args.srcConf:
