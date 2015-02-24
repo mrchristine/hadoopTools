@@ -10,7 +10,7 @@ debug = False
 
 parser = argparse.ArgumentParser(description='Gather Impala Stats')
 
-parser.add_argument('-n', dest='count', type=int, default=5, help='Number of query profiles to collect')
+parser.add_argument('-n', dest='count', type=int, default=15, help='Number of query profiles to collect')
 parser.add_argument('-v', dest='verbose', action='store_true', default=False, help='Enable verbose logging')
 parser.add_argument('-d', dest='cleanup', action='store_false', default=True,
                     help="Don't delete original contents directory")
@@ -81,8 +81,12 @@ def get_queries(site):
     # Parse and collect query and profiles. Query locations not collected
     html = urlopen(site).read()
     soup = BeautifulSoup(html, "lxml")
-    # query profile table is the 3rd table
-    qpTable = soup.find_all("table")[2]
+    # query profile table is the 3rd table in CDH5.0 - CDH5.2
+    if "impalad version 2.1" in open(outputDir + "/" + "index", "r").read():
+        # query profile table is 2nd table in CDH5.3
+        qpTable = soup.find_all("table")[1]
+    else:
+        qpTable = soup.find_all("table")[2]
     # Ignore the first table header row
     qpRows = qpTable.find_all("tr")[1:]
     outFile = open(outputDir + "/" + "queryProfiles", "w")

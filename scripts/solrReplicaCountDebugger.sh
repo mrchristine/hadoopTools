@@ -4,7 +4,7 @@ DEBUG=0
 # Collection Name / Shard # and Query to debug fluctuating doc counts
 colName="test"
 shard="shard1"
-query="select?q=*%3A*&wt=json&indent=true&distrib=false"
+query="select?q=*%3A*&wt=json&indent=true&rows=5000&distrib=false"
 
 rm -rf clusterstate.json shard_data.txt core_names.txt cores.txt
 
