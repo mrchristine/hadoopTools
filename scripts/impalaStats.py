@@ -2,43 +2,11 @@ import os, time
 import sys, argparse
 import tarfile
 from shutil import rmtree
-from bs4 import BeautifulSoup
+import json, pprint
 from urllib2 import urlopen
 
 # True / False debug variable
 debug = False
-
-parser = argparse.ArgumentParser(description='Gather Impala Stats')
-
-parser.add_argument('-n', dest='count', type=int, default=15, help='Number of query profiles to collect')
-parser.add_argument('-v', dest='verbose', action='store_true', default=False, help='Enable verbose logging')
-parser.add_argument('-d', dest='cleanup', action='store_false', default=True,
-                    help="Don't delete original contents directory")
-parser.add_argument('impalad', help='Required: Hostname or IP address of impala daemon')
-
-results = parser.parse_args(sys.argv[1:])
-if results.verbose:
-    debug = True
-
-BASE_URL = "http://" + results.impalad + ":25000"
-
-outputDir = "impala-" + time.strftime("%Y%m%d-%H%M%S")
-
-if not os.path.exists(outputDir):
-    os.makedirs(outputDir)
-
-# Check if all backends are needed for debugging
-# sessions/threadz don't support raw=true
-tabs = ['/',
-        'backends',
-        'catalog',
-        'logs',
-        'memz',
-        'metrics',
-        'queries',
-        'sessions',
-        'threadz',
-        'varz']
 
 def make_tarfile(output_filename, source_dir):
     with tarfile.open(output_filename, "w:gz") as tar:
@@ -51,71 +19,120 @@ def get_stats(site):
         fname = "index"
     if debug:
         print(site)
-    if (fname == "sessions" or fname == "threadz"):
-        html = urlopen(site).read()
+    if (fname == "metrics" or fname == "logs" or fname == "varz"):
+        html = urlopen(site + "?raw=true").read()
     elif (fname == "memz"):
         html = urlopen(site + "?detailed&raw=true").read()
     else:
-        html = urlopen(site + "?raw=true").read()
+        html = urlopen(site + "?json").read()
     out = open(outputDir + "/" + fname, 'w')
     out.write(html)
     out.close()
 
-# Extract the query profile link and grab the query details
-def logQuery(query, output):
-    # user 0 | DB 1 | Statement 2 | Type 3 | Start 4 | End 5 | BE Progress 6 | State 7 | # Rows 8 | Profile 9
-    output.write("User: " + query[0].string)
-    output.write("\nDB: " + query[1].string)
-    output.write("\nQuery: " + query[2].string)
-    output.write("\nState: " + query[7].string)
+def logQueryJson(query, output):
+    output.write("User: " + query['effective_user'])
+    output.write("\nDB: " + query['default_db'])
+    output.write("\nQuery: " + query['stmt'])
+    output.write("\nState: " + query['state'])
+    qID = query['query_id']
     # Grab the query profile url
-    qUrl = query[9].find("a")["href"]
     if debug:
-        print("qURL is " + qUrl)
-    qHtml = urlopen(BASE_URL + qUrl + "&raw=true").read()
+        # Format is :25000/query_profile?query_id=<ID>&raw=true
+        print("qURL is " + BASE_URL + "/query_profile?query_id=" + qID + "&raw=true")
+    qHtml = urlopen(BASE_URL + "/query_profile?query_id=" + qID + "&raw=true").read()
     output.write("\nQuery Profile: \n")
     output.write(qHtml)
-    output.write("\n")
 
-def get_queries(site):
+def get_queries_json(site):
     # Parse and collect query and profiles. Query locations not collected
-    html = urlopen(site).read()
-    soup = BeautifulSoup(html, "lxml")
-    # query profile table is the 3rd table in CDH5.0 - CDH5.2
-    if "impalad version 2.1" in open(outputDir + "/" + "index", "r").read():
-        # query profile table is 2nd table in CDH5.3
-        qpTable = soup.find_all("table")[1]
-    else:
-        qpTable = soup.find_all("table")[2]
-    # Ignore the first table header row
-    qpRows = qpTable.find_all("tr")[1:]
-    outFile = open(outputDir + "/" + "queryProfiles", "w")
+    html = urlopen(site + "?json").read()
+    jhtml = json.loads(html)
+    if debug:
+        pprint.pprint(jhtml)
+    completed_q = jhtml['completed_queries']
     # Count the # of query profiles to return
     c = 1
     # Iterate over the rows, and extract the profile
-    for r in qpRows:
+    outFile = open(outputDir + "/" + "queryProfiles", "w")
+    for r in completed_q:
         if debug:
-            print(r)
-        logQuery(r.find_all("td"), outFile)
+            print("Log: " + r['stmt'])
+        logQueryJson(r, outFile)
         if c == min(results.count,25):
             break
         c = c+1
     outFile.close()
 
-# Loop to grab all the web endpoints
-for s in tabs:
-    if (s != "queries"):
-        get_stats(BASE_URL + "/" + s)
-    else:
-        get_queries(BASE_URL + "/" + s)
+def getAllLogs(p):
+    json_data = open(outputDir + "/" + "backends")
+    jdata = json.load(json_data)
+    bends = jdata['backends']
+    logDir = outputDir + "/imp_logs/"
+    os.makedirs(logDir)
+    if debug:
+        print(bends)
+    for be in bends:
+        delim = be.index(":")
+        b = be[:delim]
+        logUrl = "http://" + b + ":" + str(p) + "/logs?raw=true"
+        if debug:
+            print "Grab log: " + logUrl
+        html = urlopen(logUrl).read()
+        out = open(logDir + b, "w")
+        out.write(html)
+        out.close()
 
-# If this is CDH5.2 / Impala 2.0, grab the /rpcz endpoint
-if "impalad version 2" in open(outputDir + "/" + "index", "r").read():
-    get_stats(BASE_URL + "/" + "rpcz")
 
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Gather Impala Stats')
 
-# Tar gzip the directory contents
-make_tarfile(outputDir + ".tar.gz", outputDir)
+    parser.add_argument('-n', dest='count', type=int, default=10, help='Number of query profiles to collect')
+    parser.add_argument('-v', dest='verbose', action='store_true', default=False, help='Enable verbose logging')
+    parser.add_argument('-d', dest='cleanup', action='store_false', default=True,
+                    help="Don't delete original contents directory")
+    parser.add_argument('-l', dest='grabLogs', action='store_true', default=False,
+                    help="Collect all the impala daemon logs for the known backends tab. WARNING: Slow operation")
+    parser.add_argument('-p', dest='port', type=int, default=25000, help="Port for impala web UI")
+    parser.add_argument('impalad', help='Required: Hostname or IP address of impala daemon')
 
-if results.cleanup == True:
-    rmtree(outputDir)
+    results = parser.parse_args(sys.argv[1:])
+    if results.verbose:
+        debug = True
+
+    BASE_URL = "http://" + results.impalad + ":" + str(results.port)
+
+    outputDir = "impala-" + time.strftime("%Y%m%d-%H%M%S")
+
+    if not os.path.exists(outputDir):
+        os.makedirs(outputDir)
+
+    # Loop through the index page and find the tabs available
+    get_stats(BASE_URL + "/")
+    index_tabs = json.load(open(outputDir + "/" + "index"))['__common__']['navbar']
+    tabs = []
+    for i in index_tabs:
+        if i['link'] == "/":
+            continue
+        # Append to tabs and strip off beginning /
+        tabs.append(i['link'][1:])
+
+    if debug:
+        print "TABS: "
+        print(tabs)
+
+    # Iterate through the tabs and grab the data
+    for s in tabs:
+        if (s != "queries"):
+            get_stats(BASE_URL + "/" + s)
+        else:
+            get_queries_json(BASE_URL + "/" + s)
+
+    if results.grabLogs:
+        if debug:
+            print "Collecting all logs in serial manner..."
+        getAllLogs(results.port)
+    # Tar gzip the directory contents
+    make_tarfile(outputDir + ".tar.gz", outputDir)
+
+    if results.cleanup == True:
+        rmtree(outputDir)
