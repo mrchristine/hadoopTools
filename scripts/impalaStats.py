@@ -1,6 +1,8 @@
+#!/usr/bin/python
 import os, time
 import sys, argparse
 import tarfile
+from contextlib import closing
 from shutil import rmtree
 import json, pprint
 from urllib2 import urlopen
@@ -9,7 +11,7 @@ from urllib2 import urlopen
 debug = False
 
 def make_tarfile(output_filename, source_dir):
-    with tarfile.open(output_filename, "w:gz") as tar:
+    with closing(tarfile.open(output_filename, "w:gz")) as tar:
         tar.add(source_dir, arcname=os.path.basename(source_dir))
 
 # Function to grab the raw html file
