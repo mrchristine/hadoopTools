@@ -5,10 +5,11 @@ DEBUG=0
 colName="test"
 shard="shard1"
 query="select?q=*%3A*&wt=json&indent=true&rows=5000&distrib=false"
+zkServer="localhost"
 
 rm -rf clusterstate.json shard_data.txt core_names.txt cores.txt
 
-echo "get /solr/clusterstate.json" | zookeeper-client -server localhost:2181 > clusterstate.json 2>/dev/null
+echo "get /solr/clusterstate.json" | zookeeper-client -server $zkServer:2181 > clusterstate.json 2>/dev/null
 grep -A1 "$colName\_$shard" clusterstate.json > shard_data.txt
 
 if [ -s shard_data.txt ]; 
