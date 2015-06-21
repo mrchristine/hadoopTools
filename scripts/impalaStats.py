@@ -7,12 +7,11 @@ from shutil import rmtree
 import json, pprint
 from urllib2 import urlopen
 
-# True / False debug variable
-debug = False
 
 def make_tarfile(output_filename, source_dir):
     with closing(tarfile.open(output_filename, "w:gz")) as tar:
         tar.add(source_dir, arcname=os.path.basename(source_dir))
+
 
 # Function to grab the raw html file
 def get_stats(site):
@@ -86,6 +85,8 @@ def getAllLogs(p):
 
 
 if __name__ == "__main__":
+    # True / False debug variable
+    debug = False
     parser = argparse.ArgumentParser(description='Gather Impala Stats')
 
     parser.add_argument('-n', dest='count', type=int, default=10, help='Number of query profiles to collect')
