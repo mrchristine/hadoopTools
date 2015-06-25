@@ -49,7 +49,7 @@ def pick_cluster(cluster_list):
 
 
 # Get all services for cluster
-def get_impala_service(cluster_name):
+def get_impala_service(cluster):
     """
     Gets an array of the Impala services
     :param cluster_name
@@ -139,9 +139,7 @@ if __name__ == "__main__":
         if h.hostname == args.impala_host:
             host = h
 
-    for s in cluster.get_all_services():
-        if s.type == "IMPALA":
-            impala = s
+    impala = get_impala_service(cluster)
 
     for r in impala.get_all_roles():
         if r.type == "IMPALAD":
