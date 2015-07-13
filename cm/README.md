@@ -43,7 +43,7 @@ For example, if you want to stop the datanode role for a given host, the followi
 2. Given the hostname as an input arg, search for the host ID through the list of hosts that are registered to the CM instance. 
 3. Interate through the HDFS roles and find the role types that match _DATANODE_.
 4. For each _DATANODE_ match, check the host ID from #2 to the current host ID. Once a matching role is found, save the role.
-5. Given the role name, shutdown the role using the service object .
+5. Given the role name, shutdown the role using the service object.
 
 If using an interpreter to aide in understanding the structure and APIs available, you can use the `locals()` or `globals()` commands to print any local/global variables that have been defined. I find this useful when trying to build a workflow. 
 
